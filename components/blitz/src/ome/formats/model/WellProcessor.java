@@ -26,6 +26,7 @@ package ome.formats.model;
 import static omero.rtypes.rint;
 import static omero.rtypes.rstring;
 
+import java.io.File;
 import java.util.LinkedHashMap;
 import java.util.List;
 
@@ -95,15 +96,19 @@ public class WellProcessor implements ModelProcessor {
     Plate plate = (Plate) container.sourceObject;
     String userSpecifiedPlateName = store.getUserSpecifiedName();
     String userSpecifiedPlateDescription = store.getUserSpecifiedDescription();
+
     if (userSpecifiedPlateName != null) {
       plate.setName(rstring(userSpecifiedPlateName));
     }
-    if (userSpecifiedPlateDescription != null) {
-      plate.setDescription(rstring(userSpecifiedPlateDescription));
-    }
     if (plate.getName() == null) {
       log.warn("Missing plate name for: " + container.LSID);
-      plate.setName(rstring("Plate"));
+      String filename = store.getReader().getCurrentFile();
+      filename = filename.substring(filename.lastIndexOf(File.separator) + 1);
+      plate.setName(rstring(filename));
+    }
+
+    if (userSpecifiedPlateDescription != null) {
+      plate.setDescription(rstring(userSpecifiedPlateDescription));
     }
     if (plate.getRows() == null) {
       plate.setRows(rint(1));
