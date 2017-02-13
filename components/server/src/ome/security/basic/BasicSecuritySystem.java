@@ -32,6 +32,7 @@ import ome.model.meta.Experimenter;
 import ome.model.meta.ExperimenterGroup;
 import ome.model.meta.GroupExperimenterMap;
 import ome.security.AdminAction;
+import ome.security.EventProvider;
 import ome.security.SecureAction;
 import ome.security.SecurityFilter;
 import ome.security.SecurityFilterHolder;
@@ -97,6 +98,8 @@ public class BasicSecuritySystem implements SecuritySystem,
 
     protected final SessionManager sessionManager;
 
+    protected final EventProvider eventProvider;
+
     protected final ServiceFactory sf;
 
     protected final SecurityFilter filter;
@@ -116,7 +119,7 @@ public class BasicSecuritySystem implements SecuritySystem,
      * @return a configured security system
      */
     public static BasicSecuritySystem selfConfigure(SessionManager sm,
-            ServiceFactory sf, SessionCache cache) {
+            EventProvider ep, ServiceFactory sf, SessionCache cache) {
         CurrentDetails cd = new CurrentDetails(cache);
         SystemTypes st = new SystemTypes();
         TokenHolder th = new TokenHolder();
@@ -128,7 +131,7 @@ public class BasicSecuritySystem implements SecuritySystem,
                 cd, new OneGroupSecurityFilter(roles),
                 new AllGroupsSecurityFilter(null, roles),
                 new SharingSecurityFilter(roles, null));
-        BasicSecuritySystem sec = new BasicSecuritySystem(oi, st, cd, sm,
+        BasicSecuritySystem sec = new BasicSecuritySystem(oi, st, cd, sm, ep,
                 roles, sf, new TokenHolder(), holder, new DefaultPolicyService());
         return sec;
     }
@@ -147,10 +150,11 @@ public class BasicSecuritySystem implements SecuritySystem,
      */
     public BasicSecuritySystem(OmeroInterceptor interceptor,
             SystemTypes sysTypes, CurrentDetails cd,
-            SessionManager sessionManager, Roles roles, ServiceFactory sf,
-            TokenHolder tokenHolder, SecurityFilter filter,
-            PolicyService policyService) {
+            SessionManager sessionManager, EventProvider eventProvider,
+            Roles roles, ServiceFactory sf, TokenHolder tokenHolder,
+            SecurityFilter filter, PolicyService policyService) {
         this.sessionManager = sessionManager;
+        this.eventProvider = eventProvider;
         this.policyService = policyService;
         this.tokenHolder = tokenHolder;
         this.interceptor = interceptor;
@@ -325,7 +329,6 @@ public class BasicSecuritySystem implements SecuritySystem,
     public void loadEventContext(boolean isReadOnly, boolean isClose) {
 
         final LocalAdmin admin = (LocalAdmin) sf.getAdminService();
-        final LocalUpdate update = (LocalUpdate) sf.getUpdateService();
 
         // Call to session manager throws an exception on failure
         final Principal p = clearAndCheckPrincipal();
@@ -445,7 +448,7 @@ public class BasicSecuritySystem implements SecuritySystem,
             if (event.getExperimenterGroup().getId() < 0) {
                 event.setExperimenterGroup(eventGroup);
             }
-            cd.updateEvent(update.saveAndReturnObject(event)); // TODO use merge
+            cd.updateEvent(eventProvider.updateEvent(event)); // TODO use merge
         }
     }
 
