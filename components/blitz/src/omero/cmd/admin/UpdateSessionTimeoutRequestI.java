@@ -51,12 +51,15 @@ public class UpdateSessionTimeoutRequestI extends UpdateSessionTimeoutRequest
         private final ObjectFactory factory;
         public Factory(final CurrentDetails current,
                 final SessionManager sessionManager,
-                final SecuritySystem securitySystem) {
+                final SecuritySystem securitySystem,
+                final long maxUserTimeToLive,
+                final long maxUserTimeToIdle) {
             factory = new ObjectFactory(ice_staticId()) {
                 @Override
                 public Ice.Object create(String name) {
                     return new UpdateSessionTimeoutRequestI(
-                            current, sessionManager, securitySystem);
+                            current, sessionManager, securitySystem,
+                            maxUserTimeToLive, maxUserTimeToIdle);
                 }};
             }
 
@@ -81,11 +84,18 @@ public class UpdateSessionTimeoutRequestI extends UpdateSessionTimeoutRequest
 
     protected boolean updated = false;
 
+    protected final long maxUserTimeToLive;
+
+    protected final long maxUserTimeToIdle;
+
     public UpdateSessionTimeoutRequestI(CurrentDetails current,
-            SessionManager manager, SecuritySystem security) {
+            SessionManager manager, SecuritySystem security,
+            long maxUserTimeToLive, long maxUserTimeToIdle) {
         this.current = current;
         this.manager = manager;
         this.security = security;
+        this.maxUserTimeToLive = maxUserTimeToLive;
+        this.maxUserTimeToIdle = maxUserTimeToIdle;
     }
 
     //
@@ -143,6 +153,15 @@ public class UpdateSessionTimeoutRequestI extends UpdateSessionTimeoutRequest
         }
 
         boolean isAdmin = current.getCurrentEventContext().isCurrentUserAdmin();
+        if (!isAdmin && maxUserTimeToLive != 0
+                && timeToLive.getValue() > maxUserTimeToLive) {
+            timeToLive = omero.rtypes.rlong(maxUserTimeToLive);
+            helper.info("Attempt to modify timeToLive beyond maximum");
+        }
+        if (!isAdmin && timeToIdle.getValue() > maxUserTimeToIdle) {
+            timeToIdle = omero.rtypes.rlong(maxUserTimeToIdle);
+            helper.info("Attempt to modify timeToIdle beyond maximum");
+        }
         updated |= updateField(s, Session.TIMETOLIVE, timeToLive, isAdmin);
         updated |= updateField(s, Session.TIMETOIDLE, timeToIdle, isAdmin);
         if (updated) {
@@ -168,12 +187,7 @@ public class UpdateSessionTimeoutRequestI extends UpdateSessionTimeoutRequest
         long target = value.getValue();
         long current = ((Long) s.retrieve(field)).longValue();
         long diff = target - current;
-        if (!isAdmin && diff > 0) {
-            throw helper.cancel(new ERR(), null, "non-admin-increase",
-                    "field", field,
-                    "target", ""+target,
-                    "current", ""+current);
-        } else if (!isAdmin && target <= 0) {
+        if (!isAdmin && diff != 0 && target <= 0) {
             throw helper.cancel(new ERR(), null, "non-admin-disabling",
                     "field", field,
                     "target", ""+target,
