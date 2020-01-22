@@ -398,6 +398,8 @@
       <constructor-arg ref="currentDetails"/>
       <constructor-arg ref="sessionManager"/>
       <constructor-arg ref="securitySystem"/>
+      <constructor-arg value="${omero.sessions.max_user_time_to_live}"/>
+      <constructor-arg value="${omero.sessions.max_user_time_to_idle}"/>
      <property name="iceCommunicator" ref="Ice.Communicator"/>
   </bean>
 
